@@ -1,41 +1,47 @@
-/*
- PZEM004T vers Domoticz GET
+/*  installation 
+PZEM004T to Domoticz
 Evolution by Cyril Poissonnier 2018 ( cyril.poissonnier@gmail.com ) 
 
-Alimentation Pzem : GND and  VU
+Powering Pzem : GND and VU
 
 Pzem 1 on D1-D2 pin
 Pzem 2 on D3-D4 pin 
 
 Reset pin connected to D0 pin 
-
-
-
- 
 */
+
+/////////////////////////   Parameter Code  /////////////////////////////
 //wifi parameter
 
-const char* ssid     = "__WifiSID__"; // Nom du reseau WIFI utilise
-const char* password = "__Password__"; // Mot de passe du reseau WIFI utilise
+const char* ssid     = "__WifiSID__"; // Wifi SID
+const char* password = "__Password__"; // Wifi Password
 
 //  Domoticz parameter
-const char* domoticz_server = "__Domoticz IP__"; //adresse IP de domoticz
-const String IDX_U     = "23"; //idx du capteur virtuels tension             
-const String IDX_I     = "22"; //idx du capteur virtuels intensite            
-const String IDX_W     = "24"; //idx du capteur virtuels puissance et energie 
+const char* domoticz_server = "__Domoticz IP__"; //adress IP of domoticz
 
-const String IDX_U2     = "27"; //idx du capteur virtuels tension             
-const String IDX_I2     = "26"; //idx du capteur virtuels intensite            
-const String IDX_W2     = "28"; //idx du capteur virtuels puissance et energie 
+////// First PZEM004T Parameter
+const String IDX_U     = "__XX__"; //idx virtual capteur Voltage             
+const String IDX_I     = "__XX__"; //idx virtual capteur intensity            
+const String IDX_W     = "__XX__"; //idx virtual capteur power and energy  
+/////   Pin parameter
+const int rx1 = 4; // D1
+const int tx1 = 5; // D2
+
+
+////// 2nd PZEM004T Parameter
+const String IDX_U2     = "__XX__"; //idx virtual capteur Voltage             
+const String IDX_I2     = "__XX__"; //idx virtual capteur intensity              
+const String IDX_W2     = "__XX__"; //idx virtual capteur power and energy  
+/////  pin parameter
+const int rx2 = 2; // D3 
+const int tx2 = 0; // D4
 
 //  pzem com and wait state
-#define SLEEP_DELAY_IN_SECONDS  1 //interval envoi des données
+#define SLEEP_DELAY_IN_SECONDS  1 //interval sending data
 
-const int rx1 = 4;
-const int tx1 = 5;
+///////////////////// Main Code don't modify after //////////////////
 
-const int rx2 = 2;
-const int tx2 = 0;
+
 
 /////////////////////////
 ////////// main program 
@@ -86,7 +92,7 @@ void setup(void) {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 
-  //initialisation ttl avec PZEM004T
+  //initialisation ttl with PZEM004T
   pzem.setAddress(ip);
   
 }
@@ -94,6 +100,14 @@ void setup(void) {
 void loop(void){    
   //// Pzem 1 state
   Serial.println("Pzem1");  
+  
+  /// verification if wifi is not down else reset 
+    if (WiFi.status() != WL_CONNECTED ) 
+  {
+    ESP.deepSleep(5 * 1000000, WAKE_RF_DEFAULT);
+  }
+
+  
 
   float v = pzem.voltage(ip);
   if (v < 0.0) v = 0.0;
@@ -108,12 +122,19 @@ void loop(void){
   float e = pzem.energy(ip);
   if(e >= 0.0){ Serial.print(e);Serial.print("Wh; "); }
   Serial.println();
-
-  EnvoieDomoticz(IDX_U,String(v)); // tension
-  EnvoieDomoticz(IDX_I,String(i)); // intensite
-  EnvoieDomoticz(IDX_W,String(p)+ ";" +String(e)); // puissance
-
+  /// effective power 
+  float pe = i * v ; 
+  
+  
+  EnvoieDomoticz(IDX_U,String(v)); // voltage
+  EnvoieDomoticz(IDX_I,String(i)); // intensy
+  EnvoieDomoticz(IDX_W,String(p)+ ";" +String(e)); // power
+  EnvoieDomoticz(IDX_PE,String(pe)); // effective power
   delay(100);
+  
+  
+  
+  
 //////////////  Pzem 2 state /////////
 
 
@@ -131,20 +152,22 @@ float v2 = pzem2.voltage(ip);
   float e2 = pzem2.energy(ip);
   if(e2 >= 0.0){ Serial.print(e2);Serial.print("Wh; "); }
   Serial.println();
-
-  EnvoieDomoticz(IDX_U2,String(v2)); // tension
-  EnvoieDomoticz(IDX_I2,String(i2)); // intensite
-  EnvoieDomoticz(IDX_W2,String(p2)+ ";" +String(e2)); // puissance
-
+  float pe2 = i2 * v2 ; 
+  
+  
+  EnvoieDomoticz(IDX_U2,String(v2)); // voltage
+  EnvoieDomoticz(IDX_I2,String(i2)); // intensity
+  EnvoieDomoticz(IDX_W2,String(p2)+ ";" +String(e2)); // power
+  EnvoieDomoticz(IDX_PE2,String(pe2)); // effective power
   delay(100);
 /////////////////////////
-
 
 
   Serial.println("sleep of "+String(SLEEP_DELAY_IN_SECONDS)+" seconds...");
   delay(SLEEP_DELAY_IN_SECONDS * 1000);
   }
 
+//////// function for sending data
 
 int EnvoieDomoticz(String IDX, String Svalue) {
   domoticz_client.connect(domoticz_server, 8080);
