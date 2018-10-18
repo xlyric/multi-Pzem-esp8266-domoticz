@@ -1,3 +1,4 @@
+
 /*  installation 
 PZEM004T to Domoticz
 Evolution by Cyril Poissonnier 2018 ( cyril.poissonnier@gmail.com ) 
@@ -23,18 +24,20 @@ const char* domoticz_server = "__Domoticz IP__"; //adress IP of domoticz
 const String IDX_U     = "__XX__"; //idx virtual capteur Voltage             
 const String IDX_I     = "__XX__"; //idx virtual capteur intensity            
 const String IDX_W     = "__XX__"; //idx virtual capteur power and energy  
+const String IDX_PE     = "__XX__"; //idx virtual capteur effective power  
 /////   Pin parameter
-const int rx1 = 4; // D1
-const int tx1 = 5; // D2
+const int rx1 = D1; // D1
+const int tx1 = D2; // D2
 
 
 ////// 2nd PZEM004T Parameter
 const String IDX_U2     = "__XX__"; //idx virtual capteur Voltage             
 const String IDX_I2     = "__XX__"; //idx virtual capteur intensity              
 const String IDX_W2     = "__XX__"; //idx virtual capteur power and energy  
+const String IDX_PE2     = "__XX__"; //idx virtual capteur effective power  
 /////  pin parameter
-const int rx2 = 2; // D3 
-const int tx2 = 0; // D4
+const int rx2 = D3; // D3 
+const int tx2 = D4; // D4
 
 //  pzem com and wait state
 #define SLEEP_DELAY_IN_SECONDS  1 //interval sending data
