@@ -1,24 +1,37 @@
 
 /*  installation 
 PZEM004T to Domoticz
-Evolution by Cyril Poissonnier 2018 ( cyril.poissonnier@gmail.com ) 
+Evolution by Cyril Poissonnier 2018 ( cyril.poissonnier.pzem@gmail.com ) 
 
-Powering Pzem : GND and VU
+Powering Pzem : GND and VU on ESP8266
 
 Pzem 1 on D1-D2 pin
 Pzem 2 on D3-D4 pin 
+..... Pzem X on Dx-Dy pin 
 
 Reset pin connected to D0 pin 
 */
 
+/* Pzem Connexion
+ *  ------------------------
+ *  |VDD              AC-IN| LOAD (80-260V -50/60Hz)
+ *  |RX               AC-IN| LOAD (80-260V -50/60Hz) 
+ *  |TX               CT   | 0-100A 
+ *  |GND              CT   | 0-100A
+ *  ------------------------
+ */ 
+
+
+
 /////////////////////////   Parameter Code  /////////////////////////////
 //wifi parameter
-
 const char* ssid     = "__WifiSID__"; // Wifi SID
 const char* password = "__Password__"; // Wifi Password
 
+
 //  Domoticz parameter
 const char* domoticz_server = "__Domoticz IP__"; //adress IP of domoticz
+
 
 ////// First PZEM004T Parameter
 const String IDX_U     = "__XX__"; //idx virtual capteur Voltage             
@@ -39,10 +52,23 @@ const String IDX_PE2     = "__XX__"; //idx virtual capteur effective power
 const int rx2 = D3; // D3 
 const int tx2 = D4; // D4
 
+////// Xth PZEM004T Parameter /// Add X blocs 
+/*const String IDX_Ux     = "__XX__"; //idx virtual capteur Voltage             
+const String IDX_Ix     = "__XX__"; //idx virtual capteur intensity              
+const String IDX_Wx     = "__XX__"; //idx virtual capteur power and energy  
+const String IDX_PEx     = "__XX__"; //idx virtual capteur effective power  
+/////  pin parameter
+const int rx2 = DX; // D3 
+const int tx2 = DY; // D4
+*/
+
+
+
 //  pzem com and wait state
 #define SLEEP_DELAY_IN_SECONDS  1 //interval sending data
 
 ///////////////////// Main Code don't modify after //////////////////
+////////// Just Pzem_function ( rx1,tx1, IDX_U, IDX_I, IDX_W, IDX_PE ); with you parameters ) 
 
 
 
@@ -54,8 +80,8 @@ const int tx2 = D4; // D4
 #include <PZEM004T.h>
 
 // initialisation du PZEM004T
-PZEM004T pzem(rx1,tx1);  // RX,TX borne D1 and D2
-PZEM004T pzem2(rx2,tx2);  // RX,TX borne D3 and D4
+//PZEM004T pzem(rx1,tx1);  // RX,TX borne D1 and D2
+//PZEM004T pzem2(rx2,tx2);  // RX,TX borne D3 and D4
 
 IPAddress ip(192,168,1,1);
 WiFiClient domoticz_client;
@@ -96,7 +122,7 @@ void setup(void) {
   Serial.println(WiFi.localIP());
 
   //initialisation ttl with PZEM004T
-  pzem.setAddress(ip);
+//  pzem.setAddress(ip);
   
 }
 
@@ -110,101 +136,31 @@ void loop(void){
     ESP.deepSleep(5 * 1000000, WAKE_RF_DEFAULT);
   }
 
-  
+ 
+/////////////////////        Modify here ////////////////////   
+//////////////  Pzem  state and send /////////
+Pzem_function ( rx1,tx1, IDX_U, IDX_I, IDX_W, IDX_PE );
 
-  float v = pzem.voltage(ip);
-  if (v < 0.0) v = 0.0;
-  Serial.print(v);Serial.print("V; ");
-  delay(10); 
-  float i = pzem.current(ip);
-  if(i >= 0.0){ Serial.print(i);Serial.print("A; "); }
-  delay(10);   
-  float p = pzem.power(ip);
-  if(p >= 0.0){ Serial.print(p);Serial.print("W; "); }
-  delay(10);   
-  float e = pzem.energy(ip);
-  if(e >= 0.0){ Serial.print(e);Serial.print("Wh; "); }
-  Serial.println();
-  /// effective power 
-  float pe = i * v ; 
   
-  
-  EnvoieDomoticz(IDX_U,String(v)); // voltage
-  EnvoieDomoticz(IDX_I,String(i)); // intensy
-  EnvoieDomoticz(IDX_W,String(p)+ ";" +String(e)); // power
-  EnvoieDomoticz(IDX_PE,String(pe)); // effective power
-  delay(100);
-  
-  
-  
-  
-//////////////  Pzem 2 state /////////
+//////////////  Pzem 2 state and send /////////
+Pzem_function ( rx2,tx2, IDX_U2, IDX_I2, IDX_W2, IDX_PE2 );
 
 
-  Serial.println("Pzem2 ");  
-float v2 = pzem2.voltage(ip);
-  if (v2 < 0.0) v2 = 0.0;
-  Serial.print(v2);Serial.print("V; ");
-  delay(10); 
-  float i2 = pzem2.current(ip);
-  if(i2 >= 0.0){ Serial.print(i2);Serial.print("A; "); }
-  delay(10);   
-  float p2 = pzem2.power(ip);
-  if(p2 >= 0.0){ Serial.print(p2);Serial.print("W; "); }
-  delay(10);   
-  float e2 = pzem2.energy(ip);
-  if(e2 >= 0.0){ Serial.print(e2);Serial.print("Wh; "); }
-  Serial.println();
-  float pe2 = i2 * v2 ; 
-  
-  
-  EnvoieDomoticz(IDX_U2,String(v2)); // voltage
-  EnvoieDomoticz(IDX_I2,String(i2)); // intensity
-  EnvoieDomoticz(IDX_W2,String(p2)+ ";" +String(e2)); // power
-  EnvoieDomoticz(IDX_PE2,String(pe2)); // effective power
-  delay(100);
-/////////////////////////
+//////////////  Pzem X state and send /////////
+//Pzem_function ( rxx,txx, IDX_Ux, IDX_Ix, IDX_Wx, IDX_PEx );
 
+
+////////////////// don't modify after ///////////////////
+
+/////////  wait before restart mesure 
 
   Serial.println("sleep of "+String(SLEEP_DELAY_IN_SECONDS)+" seconds...");
   delay(SLEEP_DELAY_IN_SECONDS * 1000);
   }
 
-//////// function for sending data
+///////////// End Of loop 
 
-int EnvoieDomoticz(String IDX, String Svalue) {
-  domoticz_client.connect(domoticz_server, 8080);
-  delay(500);
 
-  int Resultat=0 ;
-  int NbTentEnvoie=0;
-  
-  String deel1 = "GET /json.htm?type=command&param=udevice&idx="+IDX+"&nvalue=0&svalue=";
-  String deel3 = " HTTP/1.1\r\nHost: www.local.lan\r\nConnection: keep-alive\r\nAccept: */*\r\n\r\n";  
-  String dataInput = String(deel1 + Svalue + deel3);
-  while (Resultat!=1) {
-    if (NbTentEnvoie<10){
-      NbTentEnvoie++ ;
-      Serial.print("_");
-      domoticz_client.println(dataInput);
-      delay(500);
-      // Si le serveur repond lire toute les lignes
-      while(domoticz_client.available()){
-        String line = domoticz_client.readStringUntil('\r');
-        if (line.lastIndexOf("status")>0 and line.lastIndexOf("OK")>0){
-          Serial.println("Status OK");
-          Resultat = 1 ;
-        }
-      }
-    }
-  else{
-      Serial.println("Reset");
-      ESP.deepSleep(2 * 1000000, WAKE_RF_DEFAULT);
-    }  
-    
-  }  
-  // deconexion
-  domoticz_client.println("Connection: close");
-  domoticz_client.println();  
-  return(Resultat);
-}
+
+
+
