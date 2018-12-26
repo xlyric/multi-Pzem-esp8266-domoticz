@@ -2,6 +2,7 @@
 /*  installation 
 PZEM004T to Domoticz
 Evolution by Cyril Poissonnier 2018 ( cyril.poissonnier.pzem@gmail.com ) 
+Update 2018-12-25
 
 Powering Pzem : GND and VU on ESP8266
 
@@ -65,7 +66,7 @@ const int tx2 = DY; // D4
 
 
 //  pzem com and wait state
-#define SLEEP_DELAY_IN_SECONDS  1 //interval sending data
+#define SLEEP_DELAY_IN_SECONDS  30 //interval sending data
 
 ///////////////////// Main Code don't modify after //////////////////
 ////////// Just Pzem_function ( rx1,tx1, IDX_U, IDX_I, IDX_W, IDX_PE ); with you parameters ) 
@@ -89,7 +90,7 @@ WiFiClient domoticz_client;
 //-------------------------------------------------------------------------------------------------
 
 int nbtent=0;
-
+int timebeforereset=1000;
 
 void setup(void) {
   Serial.begin(115200);
@@ -154,13 +155,18 @@ Pzem_function ( rx2,tx2, IDX_U2, IDX_I2, IDX_W2, IDX_PE2 );
 
 /////////  wait before restart mesure 
 
+ 
+  
+   //// correction ESP hang after a long time  
+  timebeforereset--;
+  if (timebeforereset <=0 ) 
+  {
+    ESP.reset() ; 
+  }
+  
   Serial.println("sleep of "+String(SLEEP_DELAY_IN_SECONDS)+" seconds...");
   delay(SLEEP_DELAY_IN_SECONDS * 1000);
+  
   }
 
 ///////////// End Of loop 
-
-
-
-
-
