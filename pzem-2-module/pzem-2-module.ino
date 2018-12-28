@@ -114,6 +114,7 @@ void setup(void) {
     else{
       Serial.println("Reset");
       ESP.deepSleep(2 * 1000000, WAKE_RF_DEFAULT);
+      //  ESP.reset() ;  // if  reset pin is not connected to D0
     }    
   }
 
@@ -135,10 +136,11 @@ void loop(void){
     if (WiFi.status() != WL_CONNECTED ) 
   {
     ESP.deepSleep(5 * 1000000, WAKE_RF_DEFAULT);
+    //   ESP.reset() ; // if  reset pin is not connected to D0
   }
 
  
-/////////////////////        Modify here ////////////////////   
+/////////////////////        Modify here  for more PZEM ////////////////////   
 //////////////  Pzem  state and send /////////
 Pzem_function ( rx1,tx1, IDX_U, IDX_I, IDX_W, IDX_PE );
 
