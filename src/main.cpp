@@ -2,12 +2,12 @@
  *  MultiPzem 
  *  **************
  *  by Cyril Poissonnier 2022
- *  V3
+ *  V4 for Pzem V3 
  *    
  *    Powering Pzem : GND and VU on ESP8266
  *
- *   Pzem 1 on D1-D2 pin
- *   Pzem 2 on D3-D4 pin 
+ *   Pzem ar ont Pin 4(RX) and Pin 5 (TX) ( soft serial )
+ 
  * 
  *  Pzem Connexion
  *  ------------------------
@@ -16,6 +16,8 @@
  *  |TX               CT   | 0-100A 
  *  |GND              CT   | 0-100A
  *  ------------------------
+ * 
+ * Warning 230V AC is deadly, please beware 
  */
 
 
@@ -41,16 +43,36 @@
 #include <PubSubClient.h>
 #define mqtt_user "Pzem"
 // PZEM
-#include <PZEM004T.h>
+//#include <PZEM004T.h>
+#include <PZEM004Tv30.h>
 
 /***************************
  * Begin Settings
  **************************/
 
-const String VERSION = "Version 2.0" ;
+const String VERSION = "Version 3.0" ;
+
+/// number of Pzems, please prepare with adresse 0x10 and up 
+#define NUM_PZEMS 3
+
+PZEM004Tv30 pzems[NUM_PZEMS];
 
 //***********************************
-//************* Gestion du serveur WEB
+//************* declare soft serial 
+//***********************************
+
+#if defined(USE_SOFTWARE_SERIAL) && defined(ESP32)
+    #error "Can not use SoftwareSerial with ESP32"
+#elif defined(USE_SOFTWARE_SERIAL)
+
+#include <SoftwareSerial.h>
+
+SoftwareSerial pzemSWSerial(PZEM_RX_PIN, PZEM_TX_PIN);
+#endif
+
+
+//***********************************
+//************* Gestion of web server 
 //***********************************
 // Create AsyncWebServer object on port 80
 WiFiClient domotic_client;
@@ -69,21 +91,8 @@ HTTPClient http;
  **************************/
 
 #define USE_SERIAL  Serial
-#define SLEEP_DELAY_IN_SECONDS 1
+#define SLEEP_DELAY_IN_SECONDS 5
 int envoie=0; 
-/***************************
- * Pzem Parameter 
- **************************/
- /////   Pin parameter Pzem 1
-const int rx1 = 4; //D1
-const int tx1 = 5; //D2
-
-const int rx2 = 2; //D3
-const int tx2 = 0; //D4
-
-PZEM004T Pzem_1(rx1,tx1);
-PZEM004T Pzem_2(rx2,tx2);
-IPAddress ip(192,168,1,1);
 
 /***************************
  * End Settings
@@ -91,36 +100,39 @@ IPAddress ip(192,168,1,1);
 
 
 //***********************************
-//************* Gestion de la configuration
+//************* configuration value 
 //***********************************
 
 struct Config {
   char hostname[15];
   int port;
-  String IDX_U1;
-  String IDX_I1;
-  String IDX_W1;
-  String IDX_PE1;
-  
-  String IDX_U2;
-  String IDX_I2;
-  String IDX_W2;
-  String IDX_PE2;
-  
   char Publish[100];
-  
-};
+}; 
+
+struct IDX {
+  int voltage; 
+  int current ; 
+  int power;
+  int energy;
+  int frequency;
+  int pf; 
+}; 
+
+
 
 const char *filename_conf = "/config.json";
+String idx_conf = "/idx";
 Config config; 
+IDX idx[NUM_PZEMS]; 
+IDX pzem[NUM_PZEMS]; 
 
 //***********************************
 //************* Variables 
 //***********************************
-  float v1,a1,w1, wh1,   v2,a2,w2, wh2; 
+ // float voltage[NUM_PZEMS], current[NUM_PZEMS],  power[NUM_PZEMS] , energy[NUM_PZEMS] , frequency[NUM_PZEMS] , pf[NUM_PZEMS] ; 
 
 //***********************************
-//************* Gestion de la configuration - Lecture du fichier de configuration
+//************* read file configuration
 //***********************************
 
 // Loads the configuration from a file
@@ -143,30 +155,45 @@ void loadConfiguration(const char *filename, Config &config) {
   strlcpy(config.hostname,                  // <- destination
           doc["hostname"] | "192.168.1.20", // <- source
           sizeof(config.hostname));         // <- destination's capacity
-  config.IDX_U1 = doc["IDX_U1"] | 101; 
-  config.IDX_I1 = doc["IDX_I1"] | 102; 
-  config.IDX_W1 = doc["IDX_W1"] | 103; 
-  config.IDX_PE1 = doc["IDX_PE1"] | 104; 
-  config.IDX_U2 = doc["IDX_U2"] | 105; 
-  config.IDX_I2 = doc["IDX_I2"] | 106; 
-  config.IDX_W2 = doc["IDX_W2"] | 107; 
-  config.IDX_PE2 = doc["IDX_PE2"] | 108;
-  
   strlcpy(config.Publish,                  // <- destination
           doc["Publish"] | "domoticz/in", // <- source
           sizeof(config.Publish));         // <- destination's capacity
   configFile.close();
-      
+   
 }
 
-//***********************************
-//************* Gestion de la configuration - sauvegarde du fichier de configuration
-//***********************************
+// Loads the configuration from a file
+void loadIDX(const char *filename, IDX &idx) {
+  // Open file for reading
+  File configFile = LittleFS.open(filename, "r");
+
+  // Allocate a temporary JsonDocument
+  // Don't forget to change the capacity to match your requirements.
+  // Use arduinojson.org/v6/assistant to compute the capacity.
+  StaticJsonDocument<512> doc;
+
+  // Deserialize the JSON document
+  DeserializationError error = deserializeJson(doc, configFile);
+  if (error)
+    Serial.println(F("Failed to read file, using default configuration"));
+
+  // Copy values from the JsonDocument to the Config
+
+  idx.voltage = doc["IDX_U"] | 999; 
+  idx.current = doc["IDX_C"] | 999; 
+  idx.power = doc["IDX_P"] | 999; 
+  idx.energy = doc["IDX_E"] | 999; 
+  idx.frequency = doc["IDX_F"] | 999; 
+  idx.pf = doc["IDX_PF"] | 999; 
+
+    configFile.close();
+  
+}
 
 void saveConfiguration(const char *filename, const Config &config) {
   
   // Open file for writing
-   File configFile = LittleFS.open(filename_conf, "w");
+   File configFile = LittleFS.open(filename, "w");
   if (!configFile) {
     Serial.println(F("Failed to open config file for writing"));
     return;
@@ -180,17 +207,6 @@ void saveConfiguration(const char *filename, const Config &config) {
   // Set the values in the document
   doc["hostname"] = config.hostname;
   doc["port"] = config.port;
- 
-  doc["IDX_U1"] = config.IDX_U1; 
-  doc["IDX_I1"] = config.IDX_I1; 
-  doc["IDX_W1"] = config.IDX_W1; 
-  doc["IDX_PE1"] = config.IDX_PE1; 
-
-  doc["IDX_U2"] = config.IDX_U2; 
-  doc["IDX_I2"] = config.IDX_I2; 
-  doc["IDX_W2"] = config.IDX_W2; 
-  doc["IDX_PE2"] = config.IDX_PE2; 
-
   doc["Publish"] = config.Publish;
   
 
@@ -203,7 +219,41 @@ void saveConfiguration(const char *filename, const Config &config) {
   // Close the file
   configFile.close();
 }
- 
+
+void saveIDX(const char *filename, const IDX &idx) {
+  
+  // Open file for writing
+   File configFile = LittleFS.open(filename, "w");
+  if (!configFile) {
+    Serial.println(F("Failed to open config file for writing"));
+    return;
+  }
+
+  // Allocate a temporary JsonDocument
+  // Don't forget to change the capacity to match your requirements.
+  // Use arduinojson.org/assistant to compute the capacity.
+  StaticJsonDocument<512> doc;
+
+  // Set the values in the document
+  doc["IDX_U"] = idx.voltage;
+  doc["IDX_C"] = idx.current;
+  doc["IDX_P"] = idx.power;
+  doc["IDX_E"]= idx.energy;
+  doc["IDX_F"] = idx.frequency;
+  doc["IDX_PF"]= idx.pf;
+
+  // Serialize JSON to file
+  if (serializeJson(doc, configFile) == 0) {
+    Serial.println(F("Failed to write to file"));
+  }
+
+  // Close the file
+  configFile.close();
+}
+//***********************************
+//************* Gestion de la configuration - sauvegarde du fichier de configuration
+//***********************************
+
 
 
 
@@ -213,7 +263,11 @@ void saveConfiguration(const char *filename, const Config &config) {
 
 String getState() {
   String state; 
-  state = String(v1) + ";" + String(a1) + ";" + String(w1)+ ";" + String(wh1)+ ";" + String(v2) + ";" + String(a2) + ";" + String(w2)+ ";" + String(wh2)+ ";"; 
+      for(int i = 0; i < NUM_PZEMS; i++)
+    {
+      state += String(pzem[i].voltage) + ";" + String(pzem[i].current) + ";" + String(pzem[i].power) + ";" + String(pzem[i].pf) + ";" ;
+    }
+//  state = String(v1) + ";" + String(a1) + ";" + String(w1)+ ";" + String(wh1)+ ";" + String(v2) + ";" + String(a2) + ";" + String(w2)+ ";" + String(wh2)+ ";"; 
   return String(state);
 }
 
@@ -232,7 +286,7 @@ String processor(const String& var){
 
 String getconfig() {
   String configweb;  
-  configweb = String(config.IDX_U1) + ";" + String(config.IDX_I1) + ";" + String(config.IDX_W1)+ ";" + String(config.IDX_PE1) + ";" + String(config.IDX_U2) + ";" + String(config.IDX_I2) + ";" + String(config.IDX_W2)+ ";" + String(config.IDX_PE2); 
+//  configweb = String(config.IDX_U1) + ";" + String(config.IDX_I1) + ";" + String(config.IDX_W1)+ ";" + String(config.IDX_PE1) + ";" + String(config.IDX_U2) + ";" + String(config.IDX_I2) + ";" + String(config.IDX_W2)+ ";" + String(config.IDX_PE2); 
   return String(configweb);
 }
 
@@ -243,27 +297,57 @@ String getconfig() {
 void setup() {
   Serial.begin(115200);
 
+  Serial.println("start");
+
   //démarrage file system
   LittleFS.begin();
   Serial.println("Demarrage file System");
   
   USE_SERIAL.println("Pzem Program is starting...");
 
-      //***********************************
-    //************* Setup -  récupération du fichier de configuration
+  //***********************************
+  //************* Setup -  Initialize Pzem 
+  //***********************************
+    for(int i = 0; i < NUM_PZEMS; i++)
+    {
+
+      #if defined(USE_SOFTWARE_SERIAL)
+              // Initialize the PZEMs with Software Serial
+              pzems[i] = PZEM004Tv30(pzemSWSerial, 0x10 + i);
+      #elif defined(ESP32)
+              // Initialize the PZEMs with Hardware Serial2 on RX/TX pins 16 and 17
+              pzems[i] = PZEM004Tv30(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN, 0x10 + i);
+      #else
+              // Initialize the PZEMs with Hardware Serial2 on the default pins
+
+              /* Hardware Serial2 is only available on certain boards.
+              *  For example the Arduino MEGA 2560
+              */
+              pzems[i] = PZEM004Tv30(PZEM_SERIAL, 0x10 + i);
+      #endif
+      String idx_concat = idx_conf + String(i) + ".json"  ;
+    
+      const char *idx_file= idx_concat.c_str();
+     loadIDX(idx_file, idx[i]);
+     Serial.println(idx_file);
+     saveIDX(idx_file, idx[i]);
+    }
+
+    //***********************************
+    //************* Setup -  load file configuration
     //***********************************
   
   // Should load default config if run for the first time
   Serial.println(F("Loading configuration..."));
   loadConfiguration(filename_conf, config);
 
+ 
+
   // Create configuration file
   Serial.println(F("Saving configuration..."));
   saveConfiguration(filename_conf, config);
 
-  
-
-    //***********************************
+     //***********************************
     //************* Setup - Connexion Wifi
     //***********************************
 
@@ -284,10 +368,12 @@ void setup() {
   Serial.println(WiFi.localIP()); 
   Serial.println(ESP.getResetReason());
 
+
+ 
     //***********************************
     //************* Setup - OTA 
     //***********************************
-    AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
   
     //***********************************
     //************* Setup - Web pages
@@ -325,8 +411,21 @@ void setup() {
     request->send(LittleFS, "/config.json", "application/json");
   });
 
+  server.on("/idx1.json", HTTP_ANY, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/idx1.json", "application/json");
+  });
+
+  server.on("/idx2.json", HTTP_ANY, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/idx2.json", "application/json");
+  });
+
+  server.on("/idx0.json", HTTP_ANY, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/idx0.json", "application/json");
+  });
+
+
 /////////////////////////
-////// mise à jour parametre d'envoie vers domoticz et récupération des modifications de configurations
+////// posible to change configuration with web command 
 /////////////////////////
 
 server.on("/set", HTTP_ANY, [] (AsyncWebServerRequest *request) {
@@ -334,9 +433,10 @@ server.on("/set", HTTP_ANY, [] (AsyncWebServerRequest *request) {
     if (request->hasParam("save")) { Serial.println(F("Saving configuration..."));
                           saveConfiguration(filename_conf, config);   
                             }
-                          
+                        
    if (request->hasParam("hostname")) { request->getParam("hostname")->value().toCharArray(config.hostname,15);  }
    if (request->hasParam("port")) { config.port = request->getParam("port")->value().toInt();}
+   /*
    if (request->hasParam("IDX_U1")) { config.IDX_U1 = request->getParam("IDX_U1")->value().toInt();}
    if (request->hasParam("IDX_I1")) { config.IDX_I1 = request->getParam("IDX_I1")->value().toInt();}
    if (request->hasParam("IDX_W1")) { config.IDX_W1 = request->getParam("IDX_W1")->value().toInt();}
@@ -346,7 +446,7 @@ server.on("/set", HTTP_ANY, [] (AsyncWebServerRequest *request) {
    if (request->hasParam("IDX_I2")) { config.IDX_I2 = request->getParam("IDX_I2")->value().toInt();}
    if (request->hasParam("IDX_W2")) { config.IDX_W2 = request->getParam("IDX_W2")->value().toInt();}
    if (request->hasParam("IDX_PE2")) { config.IDX_PE2 = request->getParam("IDX_PE2")->value().toInt();}
-
+*/
 
    if (request->hasParam("Publish")) { request->getParam("Publish")->value().toCharArray(config.Publish,100);}
    request->send(200, "text/html", getconfig().c_str());
@@ -367,50 +467,65 @@ server.on("/set", HTTP_ANY, [] (AsyncWebServerRequest *request) {
   client.connect("Pzem");
   client.setServer(config.hostname, 1883);
 
-  //// pzem
 
-  Pzem_1.setAddress(ip);
-  Pzem_2.setAddress(ip);
-
+  Serial.println(idx[0].current);
+  Serial.println(idx[1].current);
+  Serial.println(idx[2].current);
 
 }
+//---- end Setup ---- 
+
 
     //***********************************
     //************* LOOP
     //***********************************
 
 void loop() {
-/// récupération des valeurs
-   v1 = Pzem_1.voltage(ip);                                     // Associe la variable float "v" au Voltage
-  
-   a1 = Pzem_1.current(ip);                                     // Associe la variable float "a" au Courant
-  
-   w1 = Pzem_1.power(ip);                                       // Associe la variable float "w" a la Puissance
-  
-   wh1 = Pzem_1.energy(ip);                                     // Associe la variable float "wh" a la Consommation
 
+    for(int i = 0; i < NUM_PZEMS; i++)
+    {
+      Serial.println(pzems[i].getAddress(), HEX);
+      // Read the data from the sensor
+         pzem[i].voltage = pzems[i].voltage();
+         pzem[i].current = pzems[i].current();
+         pzem[i].power = pzems[i].power();
+         pzem[i].energy = pzems[i].energy();
+         pzem[i].frequency = pzems[i].frequency();
+         pzem[i].pf = pzems[i].pf();
 
-   v2 = Pzem_2.voltage(ip);                                     // Associe la variable float "v" au Voltage
-  
-   a2 = Pzem_2.current(ip);                                     // Associe la variable float "a" au Courant
-  
-   w2 = Pzem_2.power(ip);                                       // Associe la variable float "w" a la Puissance
-  
-   wh2 = Pzem_2.energy(ip);                                     // Associe la variable float "wh" a la Consommation
+        Serial.println(pzems[i].voltage());
+                // Check if the data is valid
+        if(isnan(pzem[i].voltage)){
+            Serial.println("Error reading voltage");
+        } else if (isnan(pzem[i].current)) {
+            Serial.println("Error reading current");
+        } else if (isnan(pzem[i].power)) {
+            Serial.println("Error reading power");
+        } else if (isnan(pzem[i].energy)) {
+            Serial.println("Error reading energy");
+        } else if (isnan(pzem[i].frequency)) {
+            Serial.println("Error reading frequency");
+        } else if (isnan(pzem[i].pf)) {
+            Serial.println("Error reading power factor");
+        }
+    
+    }
 
 /// envoie des valeurs 
-if ( envoie >= 25 ) { 
-mqtt(config.IDX_U1,String(v1));
-mqtt(config.IDX_I1,String(a1));
-mqtt(config.IDX_W1,String(w1));
-mqtt(config.IDX_PE1,String(wh1));
 
-mqtt(config.IDX_U2,String(v2));
-mqtt(config.IDX_I2,String(a2));
-mqtt(config.IDX_W2,String(w2));
-mqtt(config.IDX_PE2,String(wh2));
-envoie = 0;
-delay(5000);
+if ( envoie >= 5 ) { 
+    for(int i = 0; i < NUM_PZEMS; i++)
+    {
+    mqtt(String(idx[i].voltage),String(pzem[i].voltage));
+    mqtt(String(idx[i].current),String(pzem[i].current));
+    mqtt(String(idx[i].power),String(pzem[i].power));
+    mqtt(String(idx[i].energy),String(pzem[i].energy));
+    mqtt(String(idx[i].pf),String(pzem[i].pf));
+      }
+
+  envoie = 0;
+
+  delay(5000);
 }
 else {envoie ++; }
 

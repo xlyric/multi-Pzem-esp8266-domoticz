@@ -122,35 +122,47 @@
           <div class="row">
 
             <!-- Area Chart -->
-            <div class="col-xl-3 col-md-6 mb-4">
-              <div class="card shadow mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card shadow mb-4">
                 <!-- Card Header - Dropdown -->
 				<div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                   <h6 class="m-0 font-weight-bold text-primary">Pzem1</h6>
-				  </div>
-					<div class="card-body">
+				</div>
+				<div class="card-body">
 					<div id='Pzem1' style=' width: auto; height: 200px;'>
 									
 					</div>
-					</div>
+				</div>
 			</div>
 		</div>
 			
-        		     <div class="col-xl-3 col-md-6 mb-4">
-              <div class="card shadow mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card shadow mb-4">
                 <!-- Card Header - Dropdown -->
 				<div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                   <h6 class="m-0 font-weight-bold text-primary">Pzem2</h6>
-				  </div>
-					<div class="card-body">
-					<div id="Pzem2" style=' width: auto; height: 200px;'>
-										
+				</div>
+				<div class="card-body">
+					<div id='Pzem2' style=' width: auto; height: 200px;'>
+									
 					</div>
-					</div>
+				</div>
 			</div>
-		</div>    
+		</div> 
 
-
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card shadow mb-4">
+                <!-- Card Header - Dropdown -->
+				<div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                  <h6 class="m-0 font-weight-bold text-primary">Pzem3</h6>
+				</div>
+				<div class="card-body">
+					<div id='Pzem3' style=' width: auto; height: 200px;'>
+									
+					</div>
+				</div>
+			</div>
+		</div>
 
 
 				
@@ -174,18 +186,33 @@ setInterval(function ( ) {
 		success: function ( result ) { 
 		var config = result.split(";");
 	
-	
-	    $("#Pzem1").html("<b>Voltage :</b> " + config[0] + "<br>"  );
-		$("#Pzem1").append("<b>Current :</b> " + config[1] + "<br>"  );
-		$("#Pzem1").append("<b>Power :</b> " + config[2] + "<br>"  );
-		$("#Pzem1").append("<b>Total Power :</b> " + config[3] + "<br>"  );
+	  i=0; 
+	  $("#Pzem1").html("<b>Voltage :</b> " + config[i] + "<br>"  );
+    i++;
+		$("#Pzem1").append("<b>Current :</b> " + config[i] + "<br>"  );
+    i++;
+		$("#Pzem1").append("<b>Power :</b> " + config[i] + "<br>"  );
+    i++;
+		$("#Pzem1").append("<b>Total Power :</b> " + config[i] + "<br>"  );
+    i++;
 		
-	    $("#Pzem2").html("<b>Voltage :</b> " + config[4] + "<br>"  );		
-	    $("#Pzem2").append("<b>Current :</b> " + config[5] + "<br>"  );		
-		$("#Pzem2").append("<b>Power :</b> " + config[6] + "<br>"  );
-		$("#Pzem2").append("<b>Total Power :</b> " + config[7] + "<br>"  );
+	  $("#Pzem2").html("<b>Voltage :</b> " + config[i] + "<br>"  );		
+    i++;
+	  $("#Pzem2").append("<b>Current :</b> " + config[i] + "<br>"  );		
+    i++;
+		$("#Pzem2").append("<b>Power :</b> " + config[i] + "<br>"  );
+    i++;
+		$("#Pzem2").append("<b>Total Power :</b> " + config[i] + "<br>"  );
+    i++;
 		
-	
+    $("#Pzem3").html("<b>Voltage :</b> " + config[i] + "<br>"  );	
+    i++;
+	  $("#Pzem3").append("<b>Current :</b> " + config[i] + "<br>"  );		
+    i++;
+    $("#Pzem3").append("<b>Power :</b> " + config[i] + "<br>"  );
+    i++;
+		$("#Pzem3").append("<b>Total Power :</b> " + config[i] + "<br>"  );
+    i++;
 		
 		
 	
