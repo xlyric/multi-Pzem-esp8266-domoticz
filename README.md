@@ -53,6 +53,7 @@ create dummy's connection and connect with idx  by an MQTT server
 
 for multi Pzem, you need to change the adress of the Pzem ( https://github.com/mandulaj/PZEM-004T-v30/tree/master/examples/PZEMChangeAddress )
 
+Adress : 0x10 and ++
 
 -----------------------------
 changelog
