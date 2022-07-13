@@ -1,7 +1,8 @@
 # multi-Pzem-esp8266-domoticz
 esp8266 code for mutil Pzem004 on domoticz and web interface
 
-Version 2.0  02/04/2020 
+Version 3.0  13/07/2022 
+
 
 
 this code was developped for make a hub of PZEM 004 t on an esp8266 and send informations on domoticz server
